@@ -133,7 +133,7 @@ class Component(object):
         checksum_data = ''
         
         for line in data:
-            checksum_data += line.decode('utf-8')
+            checksum_data += line
             line = line.replace('\n', '')
             s = shlex.shlex(line)
             s.whitespace_split = True
