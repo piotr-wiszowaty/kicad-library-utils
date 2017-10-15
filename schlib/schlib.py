@@ -23,7 +23,7 @@ class Documentation(object):
         self.components = OrderedDict()
         self.validFile = False
         self.header = None
-        
+
         self.checksum = ""
 
         if create:
@@ -53,9 +53,9 @@ class Documentation(object):
 
         name = None
         f.seek(0)
-        
+
         checksum_data = ''
-        
+
         for line in f.readlines():
             checksum_data += line.strip()
             line = line.replace('\n', '')
@@ -75,14 +75,14 @@ class Documentation(object):
                 self.components[name] = OrderedDict([('description',description), ('keywords',keywords), ('datasheet',datasheet)])
             #FIXME: we do not handle comments except separators around components
         f.close()
-        
+
         try:
             md5 = hashlib.md5(checksum_data.encode('utf-8'))
         except UnicodeDecodeError:
             md5 = hashlib.md5(checksum_data)
-            
+
         self.checksum = md5.hexdigest()
-        
+
         return True
 
     def save(self, filename=None):
@@ -91,7 +91,11 @@ class Documentation(object):
         if not filename: filename = self.filename
 
         to_write=self.header
-        for name,doc in self.components.items():
+
+        # Ensure that items are written in alphabetical order
+        items = sorted(self.components.items(), key = lambda item: item[0])
+
+        for name,doc in items:
             to_write.append('#\n')#just spacer (no even in dcm format specification, but used everywhere)
             to_write.append(self.line_keys['start']+name+'\n')
             for key in doc.keys():
@@ -140,11 +144,11 @@ class Component(object):
         building_fplist = False
         building_draw = False
         building_fields = False
-        
+
         checksum_data = ''
-        
+
         self.resetDraw()
-        
+
         for line in data:
             checksum_data += line.strip()
             line = line.replace('\n', '')
@@ -236,7 +240,7 @@ class Component(object):
 
         # get documentation
         self.documentation = self.getDocumentation(documentation,self.name)
-        
+
     def resetDraw(self):
         self.draw = {
                     'arcs':[],
@@ -287,9 +291,9 @@ class Component(object):
 
     def isPowerSymbol(self):
         return (self.reference=='#PWR') and (len(self.pins)==1) and (self.pins[0]['electrical_type'].lower()=='w')
-    
+
     def isPossiblyPowerSymbol(self):
-        return (self.reference=='#PWR') 
+        return (self.reference=='#PWR')
 
     def isGraphicSymbol(self):
         return self.isNonBOMSymbol() and len(self.pins)==0
@@ -311,11 +315,11 @@ class SchLib(object):
         self.header = None
         self.components = []
         self.validFile = False
-        
+
         self.checksum = ""
 
-        self.documentation = Documentation(self.libToDcmFilename(self.filename))
-        
+        self.documentation = Documentation(self.libToDcmFilename(self.filename), create)
+
         if create:
             if os.path.lexists(self.filename):
                 sys.stderr.write("File already exists!\n")
@@ -339,13 +343,13 @@ class SchLib(object):
 
     def __parse(self):
         f = open(self.filename, 'r')
-        
+
         checksum_data = ""
-        
+
         self.header = [f.readline()]
 
         checksum_data += self.header[0]
-        
+
         if self.header and not SchLib.line_keys['header'] in self.header[0]:
             sys.stderr.write("'{fn}' is not a KiCad Schematic Library File\n".format(fn=self.filename))
             return False
@@ -355,9 +359,9 @@ class SchLib(object):
 
         comments = []
         for line in f.readlines():
-        
+
             checksum_data += line.strip()
-        
+
             if line.startswith('#'):
                 comments.append(line)
 
@@ -373,31 +377,31 @@ class SchLib(object):
                     self.components.append(Component(component_data, comments, self.documentation))
                     comments = []
         f.close()
-        
+
         #perform checksum calculation
         try:
             md5 = hashlib.md5(checksum_data.encode('utf-8'))
         except UnicodeDecodeError:
             md5 = hashlib.md5(checksum_data)
         self.checksum = md5.hexdigest()
-        
+
         return True
-        
+
     def validChecksum(self):
         if len(self.checksum) == 0:
             return False
         if len(self.documentation.checksum) == 0:
             return False
-            
+
         return True
-        
+
     def compareChecksum(self, otherlib):
-    
+
         if not self.validChecksum() or not otherlib.validChecksum():
             return False
-    
+
         return self.checksum == otherlib.checksum and self.documentation.checksum == otherlib.documentation.checksum
-        
+
 
     def getComponentByName(self, name):
         for component in self.components:
@@ -405,6 +409,21 @@ class SchLib(object):
                 return component
 
         return None
+
+
+    def getComponentCount(self, unique=False):
+        count = 0
+
+        for cmp in self.components:
+            count += 1
+
+            if unique:
+                continue
+
+            count += len(cmp.aliases)
+
+        return count
+
 
     def removeComponent(self, name):
         component = self.getComponentByName(name)
@@ -428,12 +447,14 @@ class SchLib(object):
 
         self.documentation.save(self.libToDcmFilename(filename))
 
-
         # insert the header
         to_write = self.header
 
+        # Ensure that the components are sorted by name!
+        components = sorted(self.components, key = lambda cmp: cmp.name)
+
         # insert the components
-        for component in self.components:
+        for component in components:
             # append the component comments
             to_write += component.comments
 
@@ -457,10 +478,10 @@ class SchLib(object):
 
                 for k, key in enumerate(keys_list):
                     key_val = component.fields[i][key]
-                    
+
                     if k == 0 and not key_val.startswith('"'):
                         key_val = '"' + key_val + '"'
-                        
+
                     line += key_val + ' '
 
                 line = line.rstrip() + '\n'
