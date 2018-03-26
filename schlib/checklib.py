@@ -21,7 +21,7 @@ from rulebase import logError
 #enable windows wildcards
 from glob import glob
 
-parser = argparse.ArgumentParser(description='Checks KiCad library files (.lib) against KiCad Library Convention (KLC v2.0) rules. You can find the KLC at https://github.com/KiCad/kicad-library/wiki/Kicad-Library-Convention')
+parser = argparse.ArgumentParser(description='Checks KiCad library files (.lib) against KiCad Library Convention (KLC) rules. You can find the KLC at http://kicad-pcb.org/libraries/klc/')
 parser.add_argument('libfiles', nargs='+')
 parser.add_argument('-c', '--component', help='check only a specific component (implicitly verbose)', action='store')
 parser.add_argument('-p', '--pattern', help='Check multiple components by matching a regular expression', action='store')
@@ -32,6 +32,7 @@ parser.add_argument('-v', '--verbose', help='Enable verbose output. -v shows bri
 parser.add_argument('-s', '--silent', help='skip output for symbols passing all checks', action='store_true')
 parser.add_argument('-l', '--log', help='Path to JSON file to log error information')
 parser.add_argument('-w', '--nowarnings', help='Hide warnings (only show errors)', action='store_true')
+parser.add_argument('--footprints', help='Path to footprint libraries (.pretty dirs). Specify with e.g. "~/kicad/footprints/"')
 
 args = parser.parse_args()
 
@@ -91,6 +92,8 @@ for libfile in libfiles:
     if len(libfiles) > 1:
         printer.purple('Library: %s' % libfile)
 
+    n_allviolations=0
+    
     for component in lib.components:
 
         #simple match
@@ -113,6 +116,12 @@ for libfile in libfiles:
 
         for rule in rules:
             rule = rule(component)
+
+            if args.footprints:
+                rule.footprints_dir = args.footprints
+            else:
+                rule.footprints_dir = None
+
             if verbosity > 2:
                 printer.white("checking rule" + rule.name)
 
@@ -149,8 +158,10 @@ for libfile in libfiles:
         # check the number of violations
         if n_violations > 0:
             exit_code += 1
-
-    if args.fix and n_violations > 0:
+        n_allviolations=n_allviolations+n_violations
+        
+    if args.fix and n_allviolations > 0:
         lib.save()
+        printer.green("saved '{file}' with fixes for {n_violations} violations.".format(file=libfile, n_violations=n_allviolations))
 
 sys.exit(exit_code);

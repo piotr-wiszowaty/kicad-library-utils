@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import argparse
+import traceback
 
 import sys,os
 
@@ -21,7 +22,7 @@ from rulebase import logError
 # enable windows wildcards
 from glob import glob
 
-parser = argparse.ArgumentParser(description='Checks KiCad footprint files (.kicad_mod) against KiCad Library Convention (KLC v2.0) rules. You can find the KLC at https://github.com/KiCad/kicad-library/wiki/Kicad-Library-Convention')
+parser = argparse.ArgumentParser(description='Checks KiCad footprint files (.kicad_mod) against KiCad Library Convention (KLC) rules. You can find the KLC at http://kicad-pcb.org/libraries/klc/')
 parser.add_argument('kicad_mod_files', nargs='+')
 parser.add_argument('--fix', help='fix the violations if possible', action='store_true')
 parser.add_argument('--fixmore', help='fix additional violations, not covered by --fix (e.g. rectangular courtyards), implies --fix!', action='store_true')
@@ -90,7 +91,8 @@ for filename in files:
         except Exception as e:
             printer.red('could not parse module: %s' % filename)
             if args.verbose:
-                printer.red("Error: " + str(e))
+                #printer.red("Error: " + str(e))
+                traceback.print_exc()
             exit_code += 1
             continue
 
@@ -128,11 +130,15 @@ for filename in files:
         if args.fixmore and rule.needsFixMore:
             if rule.hasErrors():
                 n_violations += rule.errorCount
+            if rule.hasWarnings:
+                n_violations += rule.warningCount()
             rule.fixmore()
             rule.fix()
             rule.processOutput(printer, args.verbose, args.silent)
         elif rule.hasErrors():
             n_violations += rule.errorCount
+            if args.fixmore and rule.hasWarnings:
+                n_violations += rule.warningCount()
 
             if args.log:
                 logError(args.log, rule.name, lib_name, module.name)
@@ -151,7 +157,7 @@ for filename in files:
     if n_violations > 0:
         exit_code += 1
 
-    if (args.fix and n_violations > 0) or args.rotate!=0:
+    if ((args.fix or args.fixmore) and n_violations > 0) or args.rotate!=0:
         module.save()
 
 if args.fix:
