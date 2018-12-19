@@ -12,7 +12,7 @@ term_regex = r'''(?mx)
         (?P<brackl>\()|
         (?P<brackr>\))|
         (?P<num>[+-]?\d+\.\d+(?=[\ \)])|\-?\d+(?=[\ \)]))|
-        (?P<sq>"[^"]*")|
+        (?P<sq>"([^"]|(?<=\\)")*")|
         (?P<s>[^(^)\s]+)
        )'''
 
@@ -35,45 +35,13 @@ def parse_sexp(sexp):
             if v.is_integer(): v = int(v)
             out.append(v)
         elif term == 'sq':
-            out.append(value[1:-1])
+            out.append(value[1:-1].replace(r'\"', '"'))
         elif term == 's':
             out.append(value)
         else:
             raise NotImplementedError("Error: %r" % (term, value))
     assert not stack, "Trouble with nesting of brackets"
     return out[0]
-    
-class SexprBuilder(object):
-    def __init__(self, key, *arg, **kwarg):
-        
-        self.key = key
-        self.indent = kwargs.get('indent', 0)
-    
-        self.indent = kwargs.get('indent', 0)
-        self.key = None
-        self.output = ''
-        self.items = []
-        
-    # Move to new line (optionally indent)
-    def newline(self, indent=False):
-        self.output += "\n"
-        if indent:
-            self.indent += 1
-        self.output += 2 * self.indent * ' '
-        
-    def begin(self, key=None):
-        self.key = key
-        self.items = []
-        
-        self.output += '('
-        if key:
-            self.output += str(key)
-        
-    def add(self, item):
-        self.items.append(item)
-        
-    def end(self, newline=False):
-        self.output.append()
     
 # Form a valid sexpr (single line)
 def SexprItem(val, key=None):
@@ -188,7 +156,7 @@ def build_sexp(exp, key=None):
         out += '('+ ' '.join(build_sexp(x) for x in exp) + ')'
         return out
     elif type(exp) == type('') and re.search(r'[\s()]', exp):
-        out += '"%s"' % repr(exp)[1:-1].replace('"', '\"')
+        out += '"%s"' % repr(exp)[1:-1].replace('"', r'\"')
     elif type(exp) in [int,float]:
         out += float_render % exp
     else:
@@ -235,6 +203,7 @@ def format_sexp(sexp, indentation_size=2, max_nesting=2):
 
 if __name__ == '__main__':
     sexp = ''' ( ( data "quoted data" 123 4.5)
+         (data "with \\"escaped quotes\\"")
          (data (123 (4.5) "(more" "data)")))'''
 
     print('Input S-expression: %r' % (sexp, ))

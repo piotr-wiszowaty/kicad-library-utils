@@ -15,12 +15,13 @@ import argparse
 pin_per_row_range = range(1,41)
 pin_per_row_range_dual = range(2,41) #for some dual row connectors all numbering schemes generate the same symbol for the 1 pin per row variant.
 pin_per_row_range_screw = range(1,21)
+pin_range_dual_row_odd_count = range(2,35)
 
 reference_designator = 'J'
 
 pin_grid = 100
 pin_spacing_y = 100
-pin_lenght = 150
+pin_length = 150
 
 mp_artwork_to_body = 30
 extra_pin_grid = 50
@@ -46,11 +47,14 @@ filter_terminal_block = ['TerminalBlock*:*']
 filter_single_row = ['Connector*:*_1x??{pn_modifier:s}*']
 filter_dual_row = ['Connector*:*_2x??{pn_modifier:s}*']
 
+filter_dual_row_odd_count = ['Connector*:*2Rows*Pins{pn_modifier:s}_*', '*FCC*2Rows*Pins{pn_modifier:s}_*']
+
 pinname_update_function = lambda old_name, new_number: 'Pin_{}'.format(new_number)
 
 CONNECTOR = namedtuple("CONNECTOR",[
     'num_rows',
     'pin_per_row_range',
+    'odd_count',
     'symbol_name_format',
     'top_pin_number',
     'pin_number_generator',
@@ -71,6 +75,7 @@ conn_screw_terminal = {
     'single_row_screw' : CONNECTOR(
         num_rows = 1,
         pin_per_row_range = pin_per_row_range_screw,
+        odd_count = False,
         symbol_name_format = 'Screw_Terminal_01x{num_pins_per_row:02d}{suffix:s}',
         top_pin_number = [1],
         pin_number_generator = [lambda old_number: old_number + 1],
@@ -89,6 +94,7 @@ conn_male_female = {
     'single_row_male' : CONNECTOR(
         num_rows = 1,
         pin_per_row_range = pin_per_row_range,
+        odd_count = False,
         symbol_name_format = 'Conn_01x{num_pins_per_row:02d}_Male{suffix:s}',
         top_pin_number = [1],
         pin_number_generator = [lambda old_number: old_number + 1],
@@ -104,6 +110,7 @@ conn_male_female = {
     'single_row_female' : CONNECTOR(
         num_rows = 1,
         pin_per_row_range = pin_per_row_range,
+        odd_count = False,
         symbol_name_format = 'Conn_01x{num_pins_per_row:02d}_Female{suffix:s}',
         top_pin_number = [1],
         pin_number_generator = [lambda old_number: old_number + 1],
@@ -122,6 +129,7 @@ conn_generic = {
     'single_row' : CONNECTOR(
         num_rows = 1,
         pin_per_row_range = pin_per_row_range,
+        odd_count = False,
         symbol_name_format = 'Conn_01x{num_pins_per_row:02d}{suffix:s}',
         top_pin_number = [1],
         pin_number_generator = [lambda old_number: old_number + 1],
@@ -137,6 +145,7 @@ conn_generic = {
     'dual_row_odd-even' : CONNECTOR(
         num_rows = 2,
         pin_per_row_range = pin_per_row_range_dual,
+        odd_count = False,
         symbol_name_format = 'Conn_02x{num_pins_per_row:02d}_Odd_Even{suffix:s}',
         top_pin_number = [1, lambda num_pin_per_row: 2],
         pin_number_generator = [lambda old_number: old_number + 2, lambda old_number: old_number + 2],
@@ -152,6 +161,7 @@ conn_generic = {
     'dual_row_counter-clockwise' : CONNECTOR(
         num_rows = 2,
         pin_per_row_range = pin_per_row_range_dual,
+        odd_count = False,
         symbol_name_format = 'Conn_02x{num_pins_per_row:02d}_Counter_Clockwise{suffix:s}',
         top_pin_number = [1, lambda num_pin_per_row: 2*num_pin_per_row],
         pin_number_generator = [lambda old_number: old_number + 1, lambda old_number: old_number -1],
@@ -167,6 +177,7 @@ conn_generic = {
     'dual_row_top-bottom' : CONNECTOR(
         num_rows = 2,
         pin_per_row_range = pin_per_row_range_dual,
+        odd_count = False,
         symbol_name_format = 'Conn_02x{num_pins_per_row:02d}_Top_Bottom{suffix:s}',
         top_pin_number = [1, lambda num_pin_per_row: num_pin_per_row + 1],
         pin_number_generator = [lambda old_number: old_number + 1, lambda old_number: old_number +1],
@@ -182,6 +193,7 @@ conn_generic = {
     'dual_row_02x01_numbered' : CONNECTOR(
         num_rows = 2,
         pin_per_row_range = [1],
+        odd_count = False,
         symbol_name_format = 'Conn_02x{num_pins_per_row:02d}{suffix:s}',
         top_pin_number = [1, lambda num_pin_per_row: num_pin_per_row + 1],
         pin_number_generator = [lambda old_number: old_number + 1, lambda old_number: old_number +1],
@@ -197,6 +209,7 @@ conn_generic = {
     'dual_row_letter-first' : CONNECTOR(
         num_rows = 2,
         pin_per_row_range = pin_per_row_range,
+        odd_count = False,
         symbol_name_format = 'Conn_02x{num_pins_per_row:02d}_Row_Letter_First{suffix:s}',
         top_pin_number = ['a1', lambda num_pin_per_row: 'b1'],
         pin_number_generator = [num_gen_row_letter_first, num_gen_row_letter_first],
@@ -212,6 +225,7 @@ conn_generic = {
     'dual_row_letter-last' : CONNECTOR(
         num_rows = 2,
         pin_per_row_range = pin_per_row_range,
+        odd_count = False,
         symbol_name_format = 'Conn_02x{num_pins_per_row:02d}_Row_Letter_Last{suffix:s}',
         top_pin_number = ['1a', lambda num_pin_per_row: '1b'],
         pin_number_generator = [num_gen_row_letter_last, num_gen_row_letter_last],
@@ -223,7 +237,24 @@ conn_generic = {
         graphic_type = 0, # 0 = neutral, 1 = male, 2 = female, 3 = screw terminal
         enclosing_rectangle = True,
         mirror = False
-    )
+    ),
+
+    'dual_row_odd_pin_count' : CONNECTOR(
+        num_rows = 2,
+        pin_per_row_range = pin_range_dual_row_odd_count,
+        odd_count = True,
+        symbol_name_format = 'Conn_2Rows-{num_pins:02d}Pins{suffix:s}',
+        top_pin_number = [1, lambda num_pin_per_row: 2],
+        pin_number_generator = [lambda old_number: old_number + 2, lambda old_number: old_number + 2],
+        description = 'Generic{extra_pin:s} connector, double row, {num_pins:02d} pins, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers)',
+        keywords = 'connector',
+        datasheet = '~', # generic symbol, no datasheet, ~ to make travis happy
+        default_footprint = '', # generic symbol, no default footprint
+        footprint_filter = filter_dual_row_odd_count,
+        graphic_type = 0, # 0 = neutral, 1 = male, 2 = female, 3 = screw terminal
+        enclosing_rectangle = True,
+        mirror = False
+    ),
 }
 
 def merge_dicts(*dict_args):
@@ -377,8 +408,10 @@ def innerArtwork(type=0):
 
 
 def generateSingleSymbol(generator, series_params, num_pins_per_row, lib_params):
+    pincount = series_params.num_rows * num_pins_per_row + (1 if series_params.odd_count else 0)
     symbol_name = series_params.symbol_name_format.format(
-        num_pins_per_row=num_pins_per_row, suffix=lib_params.get('suffix',""))
+        num_pins_per_row=num_pins_per_row, suffix=lib_params.get('suffix',""),
+        num_pins=pincount)
 
     fp_filter = [filter.format(pn_modifier=lib_params.get("pn_modifier",''))
             for filter in series_params.footprint_filter]
@@ -389,6 +422,7 @@ def generateSingleSymbol(generator, series_params, num_pins_per_row, lib_params)
         dcm_options = {
         'description':series_params.description.format(
             num_pins_per_row = num_pins_per_row,
+            num_pins=pincount,
             extra_pin = lib_params.get('extra_pin_descr','')
             ) + ', script generated (kicad-library-utils/schlib/autogen/connector/)',
         'keywords':series_params.keywords,
@@ -398,35 +432,37 @@ def generateSingleSymbol(generator, series_params, num_pins_per_row, lib_params)
 
 
     ########################## reference points ################################
+    num_pins_left_side = num_pins_per_row + (1 if series_params.odd_count else 0)
+
     top_left_pin_position = Point({
-        'x': -pin_lenght - body_width_per_row,
-        'y': pin_spacing_y * (num_pins_per_row - 1) / 2.0
+        'x': -pin_length - body_width_per_row,
+        'y': pin_spacing_y * (num_pins_left_side - 1) / 2.0
         }, grid = pin_grid)
 
     if series_params.num_rows == 2:
         top_right_pin_position = top_left_pin_position.translate({
-            'x': 2*pin_lenght + 2*body_width_per_row,
+            'x': 2*pin_length + 2*body_width_per_row,
             'y': 0
             }, apply_on_copy = True)
 
     body_top_left_corner = top_left_pin_position.translate({
-        'x': pin_lenght,
+        'x': pin_length,
         'y': pin_spacing_y/2
         }, apply_on_copy = True, new_grid = None)
 
     body_width = pin_spacing_y * series_params.num_rows
     body_bottom_right_corner = body_top_left_corner.translate({
         'x': body_width,
-        'y': -pin_spacing_y * num_pins_per_row
+        'y': -pin_spacing_y * num_pins_left_side
         }, apply_on_copy = True)
 
     extra_pin=lib_params.get('extra_pin')
 
     if extra_pin:
         extra_pin_pos = body_bottom_right_corner.translate(
-            {'x': -body_width/2,'y': -pin_lenght},
+            {'x': -body_width/2,'y': -pin_length},
             apply_on_copy = True, new_grid = extra_pin_grid)
-        extra_pin_lenght = body_bottom_right_corner.y - extra_pin_pos.y - extra_pin['offset']
+        extra_pin_length = body_bottom_right_corner.y - extra_pin_pos.y - extra_pin['offset']
 
     if extra_pin == SHIELD_PIN:
         shield_top_left_corner = body_top_left_corner
@@ -450,7 +486,7 @@ def generateSingleSymbol(generator, series_params, num_pins_per_row, lib_params)
         apply_on_copy = True)
 
     current_symbol.setValue(at = value_pos, fontsize = ref_fontsize,
-        allignment_vertical = SymbolField.FieldAlligment.LEFT if extra_pin else SymbolField.FieldAlligment.CENTER)
+        alignment_vertical = SymbolField.FieldAlignment.LEFT if extra_pin else SymbolField.FieldAlignment.CENTER)
 
     ############################ artwork #################################
     drawing = current_symbol.drawing
@@ -468,11 +504,11 @@ def generateSingleSymbol(generator, series_params, num_pins_per_row, lib_params)
         drawing.append(DrawingPin(
             at=extra_pin_pos,
             number = extra_pin['number'], name = extra_pin['name'],
-            pin_lenght = extra_pin_lenght,
+            pin_length = extra_pin_length,
             orientation = DrawingPin.PinOrientation.UP
             ))
         if extra_pin['deco']:
-            drawing.append(extra_pin['deco'](extra_pin_pos, extra_pin_lenght))
+            drawing.append(extra_pin['deco'](extra_pin_pos, extra_pin_length))
 
     repeated_drawing = [innerArtwork(series_params.graphic_type)]
 
@@ -487,7 +523,7 @@ def generateSingleSymbol(generator, series_params, num_pins_per_row, lib_params)
     repeated_drawing[0].append(DrawingPin(
         at=top_left_pin_position,
         number = pin_number_0, name = pin_name_0,
-        pin_lenght = pin_lenght + (10 if extra_pin==SHIELD_PIN else 0),
+        pin_length = pin_length + (10 if extra_pin==SHIELD_PIN else 0),
         orientation = DrawingPin.PinOrientation.RIGHT
         ))
 
@@ -497,7 +533,7 @@ def generateSingleSymbol(generator, series_params, num_pins_per_row, lib_params)
         repeated_drawing[1].append(DrawingPin(
             at = top_right_pin_position,
             number = pin_number_1, name = pin_name_1,
-            pin_lenght = pin_lenght + (10 if extra_pin==SHIELD_PIN else 0),
+            pin_length = pin_length + (10 if extra_pin==SHIELD_PIN else 0),
             orientation = DrawingPin.PinOrientation.LEFT
             ))
 
@@ -505,7 +541,7 @@ def generateSingleSymbol(generator, series_params, num_pins_per_row, lib_params)
     drawing.append(DrawingArray(
         original = repeated_drawing[0],
         distance = {'x':0, 'y':-pin_spacing_y},
-        number_of_instances = num_pins_per_row,
+        number_of_instances = num_pins_left_side,
         pinnumber_update_function = series_params.pin_number_generator[0],
         pinname_update_function = pinname_update_function
         ))
