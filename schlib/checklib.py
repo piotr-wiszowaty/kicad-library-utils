@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -26,6 +26,7 @@ parser.add_argument('libfiles', nargs='+')
 parser.add_argument('-c', '--component', help='check only a specific component (implicitly verbose)', action='store')
 parser.add_argument('-p', '--pattern', help='Check multiple components by matching a regular expression', action='store')
 parser.add_argument('-r','--rule',help='Select a particular rule (or rules) to check against (default = all rules). Use comma separated values to select multiple rules. e.g. "-r 3.1,EC02"')
+parser.add_argument('-e','--exclude',help='Exclude a particular rule (or rules) to check against. Use comma separated values to select multiple rules. e.g. "-e 3.1,EC02"')
 parser.add_argument('--fix', help='fix the violations if possible', action='store_true')
 parser.add_argument('--nocolor', help='does not use colors to show the output', action='store_true')
 parser.add_argument('-v', '--verbose', help='Enable verbose output. -v shows brief information, -vv shows complete information', action='count')
@@ -51,12 +52,18 @@ else:
     #ALL rules are used
     selected_rules = None
 
+if args.exclude:
+    excluded_rules = args.exclude.split(',')
+else:
+    excluded_rules = None
+
 rules = []
 
 for r in all_rules:
     r_name = r.replace('_', '.')
     if selected_rules == None or r_name in selected_rules:
-        rules.append(globals()[r].Rule)
+        if excluded_rules == None or r_name not in excluded_rules:
+            rules.append(globals()[r].Rule)
 
 #grab list of libfiles (even on windows!)
 libfiles = []
@@ -93,7 +100,7 @@ for libfile in libfiles:
         printer.purple('Library: %s' % libfile)
 
     n_allviolations=0
-    
+
     for component in lib.components:
 
         #simple match
@@ -159,7 +166,7 @@ for libfile in libfiles:
         if n_violations > 0:
             exit_code += 1
         n_allviolations=n_allviolations+n_violations
-        
+
     if args.fix and n_allviolations > 0:
         lib.save()
         printer.green("saved '{file}' with fixes for {n_violations} violations.".format(file=libfile, n_violations=n_allviolations))
